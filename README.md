@@ -6,8 +6,6 @@
 ### 📌 Proje Hakkında
 Bu depo, aynı teknik isterlerin farklı yapay zeka modelleri tarafından nasıl yorumlandığını ve kodlandığını incelemek için oluşturulmuş bir **Yazılım Mühendisliği** çalışmasıdır.
 
-
-
 ---
 
 ### 🛠️ Teknik Analiz ve Kıyaslama
@@ -51,3 +49,12 @@ Bu versiyon, görsel hiyerarşisi ve kullanıcı etkileşimiyle bir **Premium Da
 * **Ekran Kartı:** NVIDIA GeForce RTX 4060
 * **Bellek:** 32 GB RAM
 * **İşletim Sistemi:** Windows 11
+
+---
+
+## 📺 YouTube Linkleri
+
+* ## Claude Code: https://youtu.be/4M3k_Gt5bHU
+* ## Gemini (Premium): https://youtu.be/f6fmNlUdU3I
+* ## Cursor: https://youtu.be/SUNOsows1L4
+* ## Anti-gravity: https://youtu.be/EYh3IrCntP8
