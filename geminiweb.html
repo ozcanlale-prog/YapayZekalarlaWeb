@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Hava Durumu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-attachment: fixed;
+            color: white;
+        }
+        .glass-card {
+            background: rgba(0, 0, 0, 0.6); /* Daha koyu cam efekti okunabilirliği artırır */
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+        }
+        #map { height: 250px; border-radius: 15px; margin-top: 15px; display: none; }
+        .detail-page { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 50; padding: 20px; overflow-y: auto; }
+        .clickable:hover { cursor: pointer; text-decoration: underline; color: #60a5fa; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="glass-card w-full max-w-2xl p-8 shadow-2xl">
+        <h2 class="text-4xl font-bold text-center mb-8 drop-shadow-lg text-white">Hava Durumu Portalı</h2>
+        
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+            <input id="cityInput" type="text" placeholder="Şehir yazın..." class="flex-1 p-4 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/60 focus:ring-2 focus:ring-blue-400 outline-none">
+            <button onclick="getWeather()" class="bg-blue-600 hover:bg-blue-500 px-6 py-4 rounded-xl font-bold transition-all active:scale-95 shadow-lg">Getir</button>
+            <button onclick="toggleMap()" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-4 rounded-xl font-bold transition-all shadow-lg">📍 Harita</button>
+        </div>
+
+        <div id="map"></div>
+
+        <div id="weatherResult" class="hidden mt-10 animate-fade-in text-center">
+            <h3 id="cityName" class="text-5xl font-black mb-4 drop-shadow-md italic">---</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div onclick="showDetails('sıcaklık')" class="glass-card p-6 clickable">
+                    <p class="text-sm uppercase tracking-widest opacity-80">Sıcaklık (Tıkla)</p>
+                    <p id="temp" class="text-6xl font-light">--°C</p>
+                </div>
+                <div onclick="showDetails('nem')" class="glass-card p-6 clickable">
+                    <p class="text-sm uppercase tracking-widest opacity-80">Nem (Tıkla)</p>
+                    <p id="humidity" class="text-6xl font-light">%--</p>
+                </div>
+            </div>
+            <p id="description" class="text-2xl mt-6 capitalize font-medium text-blue-200">---</p>
+        </div>
+    </div>
+
+    <div id="detailPage" class="detail-page">
+        <div class="max-w-4xl mx-auto">
+            <div class="flex justify-between items-center mb-10">
+                <h2 id="detailTitle" class="text-3xl font-bold text-blue-400">Detaylı Grafik</h2>
+                <button onclick="closeDetails()" class="text-white text-4xl">&times;</button>
+            </div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4" id="hourlyStats">
+                </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        let map;
+        let marker;
+
+        // Harita Başlatma
+        function initMap() {
+            if (map) return;
+            map = L.map('map').setView([39.93, 32.85], 6); // Türkiye merkez
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+            map.on('click', function(e) {
+                const { lat, lng } = e.latlng;
+                if (marker) marker.setLatLng(e.latlng);
+                else marker = L.marker(e.latlng).addTo(map);
+                
+                // Koordinatla veri çekme (Simüle ediliyor)
+                document.getElementById('cityInput').value = `Konum: ${lat.toFixed(2)}, ${lng.toFixed(2)}`;
+                getWeather(true);
+            });
+        }
+
+        function toggleMap() {
+            const mapDiv = document.getElementById('map');
+            mapDiv.style.display = mapDiv.style.display === 'none' ? 'block' : 'none';
+            if (mapDiv.style.display === 'block') {
+                initMap();
+                setTimeout(() => map.invalidateSize(), 200);
+            }
+        }
+
+        async function getWeather(fromMap = false) {
+            const resultDiv = document.getElementById('weatherResult');
+            const city = document.getElementById('cityInput').value;
+            
+            // Görünürlüğü aç
+            resultDiv.classList.remove('hidden');
+            document.getElementById('cityName').innerText = fromMap ? "Seçili Konum" : city.toUpperCase();
+            document.getElementById('temp').innerText = "24°C";
+            document.getElementById('humidity').innerText = "%65";
+            document.getElementById('description').innerText = "Güneşli ve Açık";
+        }
+
+        function showDetails(type) {
+            const page = document.getElementById('detailPage');
+            const stats = document.getElementById('hourlyStats');
+            const title = document.getElementById('detailTitle');
+            
+            title.innerText = `24 Saatlik ${type.toUpperCase()} Verisi`;
+            stats.innerHTML = ''; // Temizle
+            page.style.display = 'block';
+
+            // 24 Saatlik rastgele veri üret
+            for(let i = 0; i < 24; i++) {
+                const val = type === 'sıcaklık' ? (20 + Math.random() * 5).toFixed(1) + "°" : "%" + Math.floor(Math.random() * 100);
+                stats.innerHTML += `
+                    <div class="bg-white/10 p-4 rounded-lg text-center border border-white/10">
+                        <p class="text-blue-300 font-bold">${i}:00</p>
+                        <p class="text-2xl">${val}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function closeDetails() {
+            document.getElementById('detailPage').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

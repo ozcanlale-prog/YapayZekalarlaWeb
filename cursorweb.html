@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hava Durumu</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    .glass {
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+    .glass-input {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .glass-input:focus {
+      outline: none;
+      border-color: rgba(147, 197, 253, 0.6);
+      box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.15);
+    }
+    .glass-clickable {
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .glass-clickable:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+    .glass-clickable:focus-visible {
+      outline: 2px solid rgba(147, 197, 253, 0.6);
+      outline-offset: 2px;
+    }
+    .modal-backdrop {
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(8px);
+    }
+    #map-modal .leaflet-container {
+      font-family: inherit;
+      border-radius: 1rem;
+    }
+  </style>
+</head>
+<body class="min-h-screen font-sans text-slate-100 antialiased">
+  <div
+    class="fixed inset-0 bg-cover bg-center bg-no-repeat"
+    style="background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=2070&q=80');"
+  ></div>
+  <div class="fixed inset-0 bg-gradient-to-br from-emerald-950/75 via-slate-900/65 to-sky-950/80"></div>
+
+  <main class="relative z-10 flex min-h-screen flex-col items-center justify-center px-4 py-12">
+    <div class="glass w-full max-w-md rounded-3xl p-8 md:p-10">
+      <header class="mb-8 text-center">
+        <p class="text-sm font-medium uppercase tracking-[0.2em] text-emerald-200/90">Güncel</p>
+        <h1 class="mt-1 text-3xl font-bold tracking-tight text-white md:text-4xl">Hava Durumu</h1>
+        <p class="mt-2 text-sm text-white/70">Şehir yazın veya haritadan konum seçin.</p>
+      </header>
+
+      <form id="weather-form" class="space-y-4">
+        <label for="city" class="sr-only">Şehir</label>
+        <input
+          type="text"
+          id="city"
+          name="city"
+          placeholder="Örn: İstanbul, Ankara, Berlin..."
+          autocomplete="off"
+          class="glass-input w-full rounded-2xl px-4 py-3.5 text-white placeholder:text-white/45 transition"
+        />
+        <button
+          type="submit"
+          id="submit-btn"
+          class="w-full rounded-2xl bg-gradient-to-r from-emerald-500/90 to-teal-600/90 px-4 py-3.5 font-semibold text-white shadow-lg shadow-emerald-900/30 transition hover:from-emerald-400 hover:to-teal-500 focus:outline-none focus:ring-2 focus:ring-emerald-300/50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Hava Durumunu Getir
+        </button>
+      </form>
+
+      <button
+        type="button"
+        id="open-map-btn"
+        class="glass-input mt-3 w-full rounded-2xl px-4 py-3.5 text-center text-sm font-medium text-white/90 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-emerald-300/40"
+      >
+        Haritadan seç
+      </button>
+
+      <div id="error" class="mt-4 hidden rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-100" role="alert"></div>
+
+      <div id="result" class="mt-8 hidden space-y-6">
+        <div class="flex items-start justify-between gap-4 border-b border-white/10 pb-6">
+          <div>
+            <p id="location-name" class="text-2xl font-bold text-white"></p>
+            <p id="location-region" class="mt-1 text-sm text-white/65"></p>
+          </div>
+          <div id="weather-icon" class="text-5xl drop-shadow-lg" aria-hidden="true"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <button
+            type="button"
+            id="card-temp"
+            class="glass-input glass-clickable rounded-2xl p-4 text-left"
+            aria-label="Saatlik sıcaklık grafiğini aç"
+          >
+            <p class="text-xs font-medium uppercase tracking-wider text-white/55">Sıcaklık · saatlik</p>
+            <p id="temp" class="mt-1 text-3xl font-bold tabular-nums text-white"></p>
+            <p class="mt-2 text-xs text-emerald-200/80">Detay için dokunun</p>
+          </button>
+          <button
+            type="button"
+            id="card-humidity"
+            class="glass-input glass-clickable rounded-2xl p-4 text-left"
+            aria-label="Saatlik nem grafiğini aç"
+          >
+            <p class="text-xs font-medium uppercase tracking-wider text-white/55">Nem · saatlik</p>
+            <p id="humidity" class="mt-1 text-3xl font-bold tabular-nums text-white"></p>
+            <p class="mt-2 text-xs text-emerald-200/80">Detay için dokunun</p>
+          </button>
+        </div>
+        <div class="glass-input rounded-2xl p-4">
+          <p class="text-xs font-medium uppercase tracking-wider text-white/55">Durum</p>
+          <p id="description" class="mt-2 text-lg font-medium text-white"></p>
+        </div>
+      </div>
+
+      <p class="mt-8 text-center text-xs text-white/40">
+        Harita: Leaflet / OSM · Veriler <a href="https://open-meteo.com/" class="underline decoration-white/30 hover:text-white/60" target="_blank" rel="noopener">Open-Meteo</a>
+      </p>
+    </div>
+  </main>
+
+  <!-- Harita modal -->
+  <div id="map-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="map-modal-title">
+    <div class="glass relative w-full max-w-3xl rounded-3xl p-6 shadow-2xl">
+      <div class="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h2 id="map-modal-title" class="text-xl font-bold text-white">Haritadan konum seç</h2>
+          <p class="mt-1 text-sm text-white/65">Haritada bir yere tıklayın; o noktanın hava durumu yüklenecek.</p>
+        </div>
+        <button type="button" id="close-map-btn" class="rounded-xl bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20">Kapat</button>
+      </div>
+      <div id="map" class="h-[min(50vh,360px)] w-full overflow-hidden rounded-2xl ring-1 ring-white/10"></div>
+      <p id="map-hint" class="mt-3 text-center text-xs text-white/45">Haritada bir yere tıklayın.</p>
+    </div>
+  </div>
+
+  <!-- Saatlik sıcaklık -->
+  <div id="modal-hourly-temp" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="hourly-temp-title">
+    <div class="glass relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl p-6 shadow-2xl">
+      <div class="mb-4 flex items-center justify-between gap-4">
+        <h2 id="hourly-temp-title" class="text-lg font-bold text-white">Saatlik sıcaklık</h2>
+        <button type="button" class="close-hourly-btn rounded-xl bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20" data-close="modal-hourly-temp">Kapat</button>
+      </div>
+      <p id="hourly-temp-sub" class="mb-3 text-sm text-white/60"></p>
+      <div id="hourly-temp-list" class="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 text-sm"></div>
+    </div>
+  </div>
+
+  <!-- Saatlik nem -->
+  <div id="modal-hourly-humidity" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="hourly-hum-title">
+    <div class="glass relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl p-6 shadow-2xl">
+      <div class="mb-4 flex items-center justify-between gap-4">
+        <h2 id="hourly-hum-title" class="text-lg font-bold text-white">Saatlik nem</h2>
+        <button type="button" class="close-hourly-btn rounded-xl bg-white/10 px-3 py-2 text-sm text-white hover:bg-white/20" data-close="modal-hourly-humidity">Kapat</button>
+      </div>
+      <p id="hourly-hum-sub" class="mb-3 text-sm text-white/60"></p>
+      <div id="hourly-hum-list" class="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 text-sm"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    (function () {
+      const WMO_TR = {
+        0: 'Açık',
+        1: 'Çoğunlukla açık',
+        2: 'Parçalı bulutlu',
+        3: 'Kapalı',
+        45: 'Sis',
+        48: 'Donan sis',
+        51: 'Hafif çisenti',
+        53: 'Orta çisenti',
+        55: 'Yoğun çisenti',
+        56: 'Hafif donan çisenti',
+        57: 'Yoğun donan çisenti',
+        61: 'Hafif yağmur',
+        63: 'Yağmur',
+        65: 'Şiddetli yağmur',
+        66: 'Hafif donan yağmur',
+        67: 'Donan yağmur',
+        71: 'Hafif kar',
+        73: 'Kar',
+        75: 'Yoğun kar',
+        77: 'Kar taneleri',
+        80: 'Hafif sağanak',
+        81: 'Sağanak',
+        82: 'Şiddetli sağanak',
+        85: 'Hafif kar sağanağı',
+        86: 'Kar sağanağı',
+        95: 'Fırtına',
+        96: 'Dolu ile fırtına',
+        99: 'Şiddetli dolu ile fırtına',
+      };
+
+      const ICONS = {
+        clear: '☀️',
+        partly: '⛅',
+        cloudy: '☁️',
+        fog: '🌫️',
+        drizzle: '🌦️',
+        rain: '🌧️',
+        snow: '❄️',
+        storm: '⛈️',
+      };
+
+      function iconForCode(code) {
+        if (code === 0) return ICONS.clear;
+        if (code <= 3) return code === 1 ? ICONS.partly : code === 2 ? ICONS.partly : ICONS.cloudy;
+        if (code <= 48) return ICONS.fog;
+        if (code <= 57) return ICONS.drizzle;
+        if (code <= 67) return ICONS.rain;
+        if (code <= 77) return ICONS.snow;
+        if (code <= 82) return ICONS.rain;
+        if (code <= 86) return ICONS.snow;
+        return ICONS.storm;
+      }
+
+      const state = { lat: null, lon: null, label: '', sub: '' };
+
+      const form = document.getElementById('weather-form');
+      const cityInput = document.getElementById('city');
+      const submitBtn = document.getElementById('submit-btn');
+      const errorEl = document.getElementById('error');
+      const resultEl = document.getElementById('result');
+      const mapModal = document.getElementById('map-modal');
+      const mapEl = document.getElementById('map');
+      const mapHint = document.getElementById('map-hint');
+      const openMapBtn = document.getElementById('open-map-btn');
+      const closeMapBtn = document.getElementById('close-map-btn');
+      const cardTemp = document.getElementById('card-temp');
+      const cardHumidity = document.getElementById('card-humidity');
+      const modalHourlyTemp = document.getElementById('modal-hourly-temp');
+      const modalHourlyHum = document.getElementById('modal-hourly-humidity');
+
+      const timeFmt = new Intl.DateTimeFormat('tr-TR', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.classList.remove('hidden');
+        resultEl.classList.add('hidden');
+      }
+
+      function hideError() {
+        errorEl.classList.add('hidden');
+      }
+
+      function refreshBodyScroll() {
+        const any =
+          !mapModal.classList.contains('hidden') ||
+          !modalHourlyTemp.classList.contains('hidden') ||
+          !modalHourlyHum.classList.contains('hidden');
+        document.body.style.overflow = any ? 'hidden' : '';
+      }
+
+      function setModal(id, open) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle('hidden', !open);
+        refreshBodyScroll();
+      }
+
+      async function reverseLabel(lat, lon) {
+        try {
+          const u =
+            'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' +
+            lat +
+            '&longitude=' +
+            lon;
+          const r = await fetch(u);
+          const d = await r.json();
+          const city = d.city || d.locality || d.principalSubdivision || '';
+          const country = d.countryName || '';
+          const line = [city, country].filter(Boolean).join(', ');
+          return line || 'Seçilen konum';
+        } catch (e) {
+          return 'Seçilen konum (' + lat.toFixed(2) + ', ' + lon.toFixed(2) + ')';
+        }
+      }
+
+      async function loadWeather(lat, lon, name, admin) {
+        const wxUrl =
+          'https://api.open-meteo.com/v1/forecast?latitude=' +
+          lat +
+          '&longitude=' +
+          lon +
+          '&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto';
+        const wxRes = await fetch(wxUrl);
+        const wxData = await wxRes.json();
+
+        if (!wxData.current) {
+          showError('Hava verisi alınamadı. Bir süre sonra tekrar deneyin.');
+          return false;
+        }
+
+        state.lat = lat;
+        state.lon = lon;
+        state.label = name;
+        state.sub = admin || '';
+
+        const c = wxData.current;
+        const code = c.weather_code;
+        const desc = WMO_TR[code] != null ? WMO_TR[code] : 'Bilinmeyen durum';
+
+        document.getElementById('location-name').textContent = name;
+        document.getElementById('location-region').textContent = admin || '—';
+        document.getElementById('weather-icon').textContent = iconForCode(code);
+        document.getElementById('temp').textContent = Math.round(c.temperature_2m) + ' °C';
+        document.getElementById('humidity').textContent = c.relative_humidity_2m + ' %';
+        document.getElementById('description').textContent = desc;
+
+        resultEl.classList.remove('hidden');
+        hideError();
+        return true;
+      }
+
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const q = cityInput.value.trim();
+        if (!q) {
+          showError('Lütfen bir şehir adı girin.');
+          return;
+        }
+
+        hideError();
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Yükleniyor…';
+
+        try {
+          const geoUrl =
+            'https://geocoding-api.open-meteo.com/v1/search?name=' +
+            encodeURIComponent(q) +
+            '&count=1&language=tr&format=json';
+          const geoRes = await fetch(geoUrl);
+          const geoData = await geoRes.json();
+
+          if (!geoData.results || geoData.results.length === 0) {
+            showError('Şehir bulunamadı. Yazımı kontrol edip tekrar deneyin.');
+            return;
+          }
+
+          const place = geoData.results[0];
+          const lat = place.latitude;
+          const lon = place.longitude;
+          const name = place.name;
+          const admin = [place.admin1, place.country].filter(Boolean).join(', ');
+
+          await loadWeather(lat, lon, name, admin);
+        } catch (err) {
+          showError('Bağlantı hatası. İnternetinizi kontrol edin.');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Hava Durumunu Getir';
+        }
+      });
+
+      let mapInstance = null;
+      let mapMarker = null;
+
+      function initMap() {
+        if (mapInstance) return;
+        mapInstance = L.map(mapEl).setView([20, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+        }).addTo(mapInstance);
+        mapInstance.on('click', async function (ev) {
+          const lat = ev.latlng.lat;
+          const lon = ev.latlng.lng;
+          if (mapMarker) mapMarker.setLatLng(ev.latlng);
+          else mapMarker = L.marker(ev.latlng).addTo(mapInstance);
+          mapHint.textContent = 'Konum alınıyor…';
+          const label = await reverseLabel(lat, lon);
+          mapHint.textContent = 'Seçildi: ' + label;
+          setModal('map-modal', false);
+          submitBtn.disabled = true;
+          try {
+            await loadWeather(lat, lon, label, '');
+          } finally {
+            submitBtn.disabled = false;
+          }
+        });
+      }
+
+      openMapBtn.addEventListener('click', function () {
+        setModal('map-modal', true);
+        mapHint.textContent = 'Haritada bir yere tıklayın.';
+        setTimeout(function () {
+          initMap();
+          mapInstance.invalidateSize();
+          setTimeout(function () {
+            mapInstance.invalidateSize();
+          }, 300);
+        }, 150);
+      });
+
+      closeMapBtn.addEventListener('click', function () {
+        setModal('map-modal', false);
+      });
+
+      mapModal.addEventListener('click', function (ev) {
+        if (ev.target === mapModal) {
+          setModal('map-modal', false);
+        }
+      });
+
+      async function fetchHourly() {
+        if (state.lat == null || state.lon == null) return null;
+        const u =
+          'https://api.open-meteo.com/v1/forecast?latitude=' +
+          state.lat +
+          '&longitude=' +
+          state.lon +
+          '&hourly=temperature_2m,relative_humidity_2m&forecast_hours=48&timezone=auto';
+        const r = await fetch(u);
+        return r.json();
+      }
+
+      function renderHourlyRows(times, values, formatVal) {
+        return times.map(function (t, i) {
+          const row = document.createElement('div');
+          row.className =
+            'flex items-center justify-between gap-3 rounded-xl bg-white/5 px-3 py-2.5 ring-1 ring-white/10';
+          const left = document.createElement('span');
+          left.className = 'text-white/85';
+          left.textContent = timeFmt.format(new Date(t));
+          const right = document.createElement('span');
+          right.className = 'font-semibold tabular-nums text-white';
+          right.textContent = formatVal(values[i]);
+          row.appendChild(left);
+          row.appendChild(right);
+          return row;
+        });
+      }
+
+      cardTemp.addEventListener('click', async function () {
+        if (state.lat == null) return;
+        document.getElementById('hourly-temp-sub').textContent =
+          state.label + (state.sub ? ' · ' + state.sub : '');
+        document.getElementById('hourly-temp-list').innerHTML =
+          '<p class="text-white/50">Yükleniyor…</p>';
+        setModal('modal-hourly-temp', true);
+        try {
+          const data = await fetchHourly();
+          const h = data.hourly;
+          if (!h || !h.time || !h.temperature_2m) {
+            document.getElementById('hourly-temp-list').innerHTML =
+              '<p class="text-red-200">Veri alınamadı.</p>';
+            return;
+          }
+          const list = document.getElementById('hourly-temp-list');
+          list.innerHTML = '';
+          renderHourlyRows(h.time, h.temperature_2m, function (v) {
+            return Math.round(v) + ' °C';
+          }).forEach(function (node) {
+            list.appendChild(node);
+          });
+        } catch (e) {
+          document.getElementById('hourly-temp-list').innerHTML =
+            '<p class="text-red-200">Bağlantı hatası.</p>';
+        }
+      });
+
+      cardHumidity.addEventListener('click', async function () {
+        if (state.lat == null) return;
+        document.getElementById('hourly-hum-sub').textContent =
+          state.label + (state.sub ? ' · ' + state.sub : '');
+        document.getElementById('hourly-hum-list').innerHTML =
+          '<p class="text-white/50">Yükleniyor…</p>';
+        setModal('modal-hourly-humidity', true);
+        try {
+          const data = await fetchHourly();
+          const h = data.hourly;
+          if (!h || !h.time || !h.relative_humidity_2m) {
+            document.getElementById('hourly-hum-list').innerHTML =
+              '<p class="text-red-200">Veri alınamadı.</p>';
+            return;
+          }
+          const list = document.getElementById('hourly-hum-list');
+          list.innerHTML = '';
+          renderHourlyRows(h.time, h.relative_humidity_2m, function (v) {
+            return Math.round(v) + ' %';
+          }).forEach(function (node) {
+            list.appendChild(node);
+          });
+        } catch (e) {
+          document.getElementById('hourly-hum-list').innerHTML =
+            '<p class="text-red-200">Bağlantı hatası.</p>';
+        }
+      });
+
+      document.querySelectorAll('.close-hourly-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          setModal(btn.getAttribute('data-close'), false);
+        });
+      });
+
+      [modalHourlyTemp, modalHourlyHum].forEach(function (m) {
+        m.addEventListener('click', function (ev) {
+          if (ev.target === m) {
+            setModal(m.id, false);
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

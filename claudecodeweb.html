@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hava Durumu</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --glass-bg: rgba(255, 255, 255, 0.12);
+      --glass-border: rgba(255, 255, 255, 0.25);
+      --glass-shadow: rgba(0, 0, 0, 0.25);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255,255,255,0.75);
+      --accent: #a8d8ea;
+      --accent2: #f9c784;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+      background: #0a1628;
+    }
+
+    .bg-scene {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(99,179,237,0.35) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 20%, rgba(160,210,180,0.3) 0%, transparent 55%),
+        radial-gradient(ellipse at 60% 80%, rgba(251,191,100,0.2) 0%, transparent 50%),
+        linear-gradient(135deg, #0d2137 0%, #1a3a5c 40%, #0f2d1f 100%);
+      animation: bgShift 12s ease-in-out infinite alternate;
+    }
+
+    @keyframes bgShift {
+      0% { filter: hue-rotate(0deg) brightness(1); }
+      100% { filter: hue-rotate(18deg) brightness(1.08); }
+    }
+
+    .bg-photo {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1600&q=80');
+      background-size: cover;
+      background-position: center;
+      opacity: 0.28;
+      mix-blend-mode: luminosity;
+    }
+
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.45;
+      z-index: 0;
+      animation: floatOrb 14s ease-in-out infinite alternate;
+    }
+    .orb-1 { width: 500px; height: 500px; background: radial-gradient(circle, #63b3ed, transparent); top: -120px; left: -100px; animation-delay: 0s; }
+    .orb-2 { width: 400px; height: 400px; background: radial-gradient(circle, #68d391, transparent); bottom: -80px; right: -80px; animation-delay: -4s; }
+    .orb-3 { width: 300px; height: 300px; background: radial-gradient(circle, #f6ad55, transparent); bottom: 10%; left: 30%; animation-delay: -8s; }
+
+    @keyframes floatOrb {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(30px, -40px) scale(1.12); }
+    }
+
+    .particles { position: fixed; inset: 0; z-index: 2; pointer-events: none; overflow: hidden; }
+    .particle {
+      position: absolute;
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.5);
+      animation: drift linear infinite;
+    }
+
+    @keyframes drift {
+      0% { transform: translateY(-20px) translateX(0); opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 0.6; }
+      100% { transform: translateY(100vh) translateX(60px); opacity: 0; }
+    }
+
+    .card-wrapper {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 480px;
+      padding: 20px;
+      animation: slideUp 0.8s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(40px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(28px) saturate(160%);
+      -webkit-backdrop-filter: blur(28px) saturate(160%);
+      border: 1px solid var(--glass-border);
+      border-radius: 28px;
+      padding: 40px 36px;
+      box-shadow: 0 24px 64px var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.2);
+      color: var(--text-primary);
+    }
+
+    .site-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .site-subtitle {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 32px;
+      letter-spacing: 0.06em;
+    }
+
+    .search-wrap {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 36px;
+    }
+
+    .search-input {
+      flex: 1;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.22);
+      border-radius: 14px;
+      padding: 13px 18px;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.3s;
+      backdrop-filter: blur(8px);
+    }
+
+    .search-input::placeholder { color: rgba(255,255,255,0.45); }
+    .search-input:focus {
+      border-color: var(--accent);
+      background: rgba(255,255,255,0.16);
+      box-shadow: 0 0 0 3px rgba(168,216,234,0.2);
+    }
+
+    .search-btn {
+      background: linear-gradient(135deg, #63b3ed, #4299e1);
+      border: none;
+      border-radius: 14px;
+      padding: 13px 18px;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      white-space: nowrap;
+      box-shadow: 0 4px 16px rgba(66,153,225,0.4);
+    }
+
+    .search-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(66,153,225,0.55);
+      background: linear-gradient(135deg, #7ec8f5, #63b3ed);
+    }
+
+    .search-btn:active { transform: translateY(0); }
+
+    .search-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .weather-result {
+      display: none;
+      animation: fadeIn 0.6s ease both;
+    }
+
+    .weather-result.visible { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .city-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 2rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 4px;
+      line-height: 1.1;
+    }
+
+    .country-date {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.83rem;
+      margin-bottom: 28px;
+      letter-spacing: 0.05em;
+    }
+
+    .weather-main {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .weather-icon-big {
+      font-size: 5rem;
+      line-height: 1;
+      filter: drop-shadow(0 4px 16px rgba(0,0,0,0.4));
+      animation: iconFloat 3s ease-in-out infinite alternate;
+    }
+
+    @keyframes iconFloat {
+      from { transform: translateY(0); }
+      to { transform: translateY(-8px); }
+    }
+
+    .temp-display {
+      font-family: 'Playfair Display', serif;
+      font-size: 5rem;
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -3px;
+    }
+
+    .temp-unit {
+      font-size: 2rem;
+      vertical-align: super;
+      font-weight: 400;
+      opacity: 0.7;
+      letter-spacing: 0;
+    }
+
+    .weather-desc {
+      text-align: center;
+      font-size: 1.05rem;
+      color: var(--accent);
+      font-weight: 500;
+      margin-bottom: 28px;
+      letter-spacing: 0.04em;
+      text-transform: capitalize;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat-card {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 16px;
+      padding: 16px 12px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .stat-card:hover {
+      background: rgba(255,255,255,0.14);
+      transform: translateY(-3px);
+    }
+
+    .stat-icon { font-size: 1.5rem; margin-bottom: 6px; }
+    .stat-value { font-size: 1.2rem; font-weight: 600; margin-bottom: 2px; color: var(--accent2); }
+    .stat-label { font-size: 0.7rem; color: var(--text-secondary); letter-spacing: 0.06em; text-transform: uppercase; }
+
+    .divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      margin: 28px 0;
+    }
+
+    .error-msg {
+      display: none;
+      text-align: center;
+      color: #fc8181;
+      background: rgba(252,129,129,0.1);
+      border: 1px solid rgba(252,129,129,0.25);
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 0.9rem;
+    }
+    .error-msg.visible { display: block; animation: fadeIn 0.4s ease both; }
+
+    .spinner {
+      display: none;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    .spinner.visible { display: flex; }
+    .spin-ring {
+      width: 36px; height: 36px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .footer {
+      text-align: center;
+      margin-top: 28px;
+      font-size: 0.72rem;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 0.04em;
+    }
+
+    .clickable-stat {
+      cursor: pointer;
+      user-select: none;
+    }
+    .clickable-stat:focus-visible {
+      outline: 2px solid rgba(168,216,234,0.7);
+      outline-offset: 3px;
+    }
+    .clickable-stat .stat-hint {
+      display: block;
+      margin-top: 8px;
+      font-size: 0.62rem;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.04em;
+      text-transform: none;
+      font-weight: 400;
+    }
+
+    .weather-main.clickable-stat {
+      border-radius: 20px;
+      padding: 8px 12px;
+      margin: -8px -12px 0;
+      transition: background 0.25s;
+    }
+    .weather-main.clickable-stat:hover {
+      background: rgba(255,255,255,0.06);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(10, 22, 40, 0.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      animation: fadeIn 0.25s ease both;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal-panel {
+      width: 100%;
+      max-width: 420px;
+      max-height: min(85vh, 560px);
+      display: flex;
+      flex-direction: column;
+      background: var(--glass-bg);
+      backdrop-filter: blur(28px) saturate(160%);
+      -webkit-backdrop-filter: blur(28px) saturate(160%);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 22px 20px 18px;
+      box-shadow: 0 24px 64px var(--glass-shadow);
+      color: var(--text-primary);
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .modal-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.35rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .modal-sub {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+    .modal-close {
+      flex-shrink: 0;
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      font-size: 1.4rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .modal-close:hover { background: rgba(255,255,255,0.16); }
+
+    .modal-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .modal-tab {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      color: var(--text-secondary);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-tab:hover { background: rgba(255,255,255,0.1); color: #fff; }
+    .modal-tab.active {
+      background: rgba(168,216,234,0.2);
+      border-color: rgba(168,216,234,0.45);
+      color: var(--accent);
+    }
+
+    .modal-scroll {
+      overflow-y: auto;
+      flex: 1;
+      min-height: 0;
+      padding-right: 4px;
+      margin: 0 -4px 0 0;
+    }
+    .modal-scroll::-webkit-scrollbar { width: 6px; }
+    .modal-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+    }
+
+    .detail-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 8px;
+      font-size: 0.88rem;
+    }
+    .detail-row:last-child { margin-bottom: 0; }
+    .detail-time { color: rgba(255,255,255,0.88); }
+    .detail-val {
+      font-weight: 600;
+      color: var(--accent2);
+      font-variant-numeric: tabular-nums;
+    }
+    .detail-loading, .detail-error {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    .detail-error { color: #fc8181; }
+
+    .map-open-btn {
+      width: 100%;
+      margin-bottom: 36px;
+      padding: 13px 18px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .map-open-btn:hover {
+      background: rgba(255,255,255,0.14);
+      border-color: rgba(168,216,234,0.45);
+      transform: translateY(-1px);
+    }
+    .map-open-btn:focus-visible {
+      outline: 2px solid rgba(168,216,234,0.7);
+      outline-offset: 3px;
+    }
+
+    .map-modal-overlay {
+      z-index: 210;
+    }
+    .map-modal-panel {
+      max-width: min(560px, 100%);
+      max-height: min(90vh, 640px);
+    }
+    .map-container {
+      height: min(50vh, 400px);
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      z-index: 0;
+    }
+    .map-modal-panel .leaflet-container {
+      font-family: 'DM Sans', sans-serif;
+      border-radius: 16px;
+    }
+    .map-hint {
+      text-align: center;
+      margin-top: 12px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-scene"></div>
+  <div class="bg-photo"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="particles" id="particles"></div>
+
+  <div class="card-wrapper">
+    <div class="card">
+      <p class="site-title">☁ Hava Durumu</p>
+      <p class="site-subtitle">Şehir ismi girerek anlık hava bilgisini öğren</p>
+
+      <div class="search-wrap">
+        <input class="search-input" id="cityInput" type="text" placeholder="Şehir adı girin... (örn: İstanbul)" autocomplete="off">
+        <button class="search-btn" id="fetchBtn" type="button">
+          🔍 Getir
+        </button>
+      </div>
+
+      <button type="button" class="map-open-btn" id="openMapBtn" aria-haspopup="dialog" aria-controls="mapModal">
+        🗺 Haritadan seç
+      </button>
+
+      <div class="spinner" id="spinner"><div class="spin-ring"></div></div>
+
+      <div class="error-msg" id="errorMsg" role="alert"></div>
+
+      <div class="weather-result" id="weatherResult">
+        <div class="city-name" id="cityDisplay">—</div>
+        <div class="country-date" id="dateDisplay">—</div>
+
+        <div
+          class="weather-main clickable-stat"
+          id="cardTemp"
+          role="button"
+          tabindex="0"
+          aria-label="Saatlik ve günlük sıcaklık detayı"
+        >
+          <div class="weather-icon-big" id="weatherIcon">🌤</div>
+          <div>
+            <div class="temp-display" id="tempDisplay">—<span class="temp-unit">°C</span></div>
+            <span class="stat-hint">Detay · saatlik &amp; günlük</span>
+          </div>
+        </div>
+
+        <div class="weather-desc" id="descDisplay">—</div>
+
+        <div class="divider"></div>
+
+        <div class="stats-grid">
+          <div
+            class="stat-card clickable-stat"
+            id="cardHumidity"
+            role="button"
+            tabindex="0"
+            aria-label="Saatlik ve günlük nem detayı"
+          >
+            <div class="stat-icon">💧</div>
+            <div class="stat-value" id="humidityVal">—</div>
+            <div class="stat-label">Nem</div>
+            <span class="stat-hint">Detay · saatlik &amp; günlük</span>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🌬</div>
+            <div class="stat-value" id="windVal">—</div>
+            <div class="stat-label">Rüzgar</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">👁</div>
+            <div class="stat-value" id="feelVal">—</div>
+            <div class="stat-label">Hissedilen</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">Open-Meteo · Harita: Leaflet / OSM</div>
+    </div>
+  </div>
+
+  <div
+    id="mapModal"
+    class="modal-overlay map-modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="mapModalTitle"
+  >
+    <div class="modal-panel map-modal-panel" id="mapModalPanel">
+      <div class="modal-head">
+        <div>
+          <h2 class="modal-title" id="mapModalTitle">Haritadan konum seç</h2>
+          <p class="modal-sub">Haritada bir yere tıklayın; o noktanın hava durumu yüklenecek.</p>
+        </div>
+        <button type="button" class="modal-close" id="mapModalClose" aria-label="Kapat">×</button>
+      </div>
+      <div id="map" class="map-container"></div>
+      <p class="map-hint" id="mapHint">Haritada bir yere tıklayın.</p>
+    </div>
+  </div>
+
+  <div
+    id="detailModal"
+    class="modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="detailModalTitle"
+  >
+    <div class="modal-panel" id="detailModalPanel">
+      <div class="modal-head">
+        <div>
+          <h2 class="modal-title" id="detailModalTitle">Sıcaklık</h2>
+          <p class="modal-sub" id="detailModalSub"></p>
+        </div>
+        <button type="button" class="modal-close" id="detailModalClose" aria-label="Kapat">×</button>
+      </div>
+      <div class="modal-tabs" role="tablist">
+        <button type="button" class="modal-tab active" id="tabHourly" role="tab" aria-selected="true">Saatlik</button>
+        <button type="button" class="modal-tab" id="tabDaily" role="tab" aria-selected="false">Günlük</button>
+      </div>
+      <div class="modal-scroll" id="detailModalScroll">
+        <div id="detailHourlyPanel"></div>
+        <div id="detailDailyPanel" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script>
+    const WMO_TR = {
+      0: 'Açık',
+      1: 'Çoğunlukla açık',
+      2: 'Parçalı bulutlu',
+      3: 'Kapalı',
+      45: 'Sis',
+      48: 'Donan sis',
+      51: 'Hafif çisenti',
+      53: 'Orta çisenti',
+      55: 'Yoğun çisenti',
+      56: 'Hafif donan çisenti',
+      57: 'Yoğun donan çisenti',
+      61: 'Hafif yağmur',
+      63: 'Yağmur',
+      65: 'Şiddetli yağmur',
+      66: 'Hafif donan yağmur',
+      67: 'Donan yağmur',
+      71: 'Hafif kar',
+      73: 'Kar',
+      75: 'Yoğun kar',
+      77: 'Kar taneleri',
+      80: 'Hafif sağanak',
+      81: 'Sağanak',
+      82: 'Şiddetli sağanak',
+      85: 'Hafif kar sağanağı',
+      86: 'Kar sağanağı',
+      95: 'Fırtına',
+      96: 'Dolu ile fırtına',
+      99: 'Şiddetli dolu ile fırtına',
+    };
+
+    const ICONS = {
+      clear: '☀️',
+      partly: '⛅',
+      cloudy: '☁️',
+      fog: '🌫️',
+      drizzle: '🌦️',
+      rain: '🌧️',
+      snow: '❄️',
+      storm: '⛈️',
+    };
+
+    function iconForCode(code) {
+      if (code === 0) return ICONS.clear;
+      if (code <= 3) return code === 1 ? ICONS.partly : code === 2 ? ICONS.partly : ICONS.cloudy;
+      if (code <= 48) return ICONS.fog;
+      if (code <= 57) return ICONS.drizzle;
+      if (code <= 67) return ICONS.rain;
+      if (code <= 77) return ICONS.snow;
+      if (code <= 82) return ICONS.rain;
+      if (code <= 86) return ICONS.snow;
+      return ICONS.storm;
+    }
+
+    const state = { lat: null, lon: null, placeLine: '' };
+
+    const timeFmt = new Intl.DateTimeFormat('tr-TR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const dayFmt = new Intl.DateTimeFormat('tr-TR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
+
+    function setDetailTab(which) {
+      const hourly = document.getElementById('detailHourlyPanel');
+      const daily = document.getElementById('detailDailyPanel');
+      const tabH = document.getElementById('tabHourly');
+      const tabD = document.getElementById('tabDaily');
+      const isHourly = which === 'hourly';
+      hourly.style.display = isHourly ? 'block' : 'none';
+      daily.style.display = isHourly ? 'none' : 'block';
+      tabH.classList.toggle('active', isHourly);
+      tabD.classList.toggle('active', !isHourly);
+      tabH.setAttribute('aria-selected', isHourly);
+      tabD.setAttribute('aria-selected', !isHourly);
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detailModal').classList.remove('open');
+    }
+
+    function renderHourlyRows(times, values, formatVal) {
+      const frag = document.createDocumentFragment();
+      for (let i = 0; i < times.length; i++) {
+        const row = document.createElement('div');
+        row.className = 'detail-row';
+        const left = document.createElement('span');
+        left.className = 'detail-time';
+        left.textContent = timeFmt.format(new Date(times[i]));
+        const right = document.createElement('span');
+        right.className = 'detail-val';
+        right.textContent = formatVal(values[i]);
+        row.appendChild(left);
+        row.appendChild(right);
+        frag.appendChild(row);
+      }
+      return frag;
+    }
+
+    function renderDailyRows(daily, mode) {
+      const times = daily.time;
+      const frag = document.createDocumentFragment();
+      if (!times || !times.length) {
+        const err = document.createElement('div');
+        err.className = 'detail-error';
+        err.textContent = 'Günlük veri yok.';
+        frag.appendChild(err);
+        return frag;
+      }
+
+      if (mode === 'temp') {
+        const maxA = daily.temperature_2m_max;
+        const minA = daily.temperature_2m_min;
+        if (!maxA || !minA) {
+          const err = document.createElement('div');
+          err.className = 'detail-error';
+          err.textContent = 'Günlük sıcaklık verisi alınamadı.';
+          frag.appendChild(err);
+          return frag;
+        }
+        for (let i = 0; i < times.length; i++) {
+          const row = document.createElement('div');
+          row.className = 'detail-row';
+          const left = document.createElement('span');
+          left.className = 'detail-time';
+          left.textContent = dayFmt.format(new Date(times[i]));
+          const right = document.createElement('span');
+          right.className = 'detail-val';
+          right.textContent =
+            Math.round(maxA[i]) + '° / ' + Math.round(minA[i]) + '°C';
+          row.appendChild(left);
+          row.appendChild(right);
+          frag.appendChild(row);
+        }
+      } else {
+        const maxA = daily.relative_humidity_2m_max;
+        const minA = daily.relative_humidity_2m_min;
+        if (!maxA || !minA) {
+          const err = document.createElement('div');
+          err.className = 'detail-error';
+          err.textContent = 'Günlük nem verisi alınamadı.';
+          frag.appendChild(err);
+          return frag;
+        }
+        for (let i = 0; i < times.length; i++) {
+          const row = document.createElement('div');
+          row.className = 'detail-row';
+          const left = document.createElement('span');
+          left.className = 'detail-time';
+          left.textContent = dayFmt.format(new Date(times[i]));
+          const right = document.createElement('span');
+          right.className = 'detail-val';
+          right.textContent =
+            Math.round(maxA[i]) + '% / ' + Math.round(minA[i]) + '%';
+          row.appendChild(left);
+          row.appendChild(right);
+          frag.appendChild(row);
+        }
+      }
+      return frag;
+    }
+
+    async function openDetailModal(mode) {
+      if (state.lat == null || state.lon == null) return;
+
+      document.getElementById('detailModalTitle').textContent =
+        mode === 'temp' ? 'Sıcaklık' : 'Nem';
+      document.getElementById('detailModalSub').textContent = state.placeLine;
+      document.getElementById('detailHourlyPanel').innerHTML =
+        '<div class="detail-loading">Yükleniyor…</div>';
+      document.getElementById('detailDailyPanel').innerHTML = '';
+      setDetailTab('hourly');
+      document.getElementById('detailModal').classList.add('open');
+
+      try {
+        const u =
+          'https://api.open-meteo.com/v1/forecast?latitude=' +
+          state.lat +
+          '&longitude=' +
+          state.lon +
+          '&hourly=temperature_2m,relative_humidity_2m&forecast_hours=48' +
+          '&daily=temperature_2m_max,temperature_2m_min,relative_humidity_2m_max,relative_humidity_2m_min' +
+          '&timezone=auto';
+        const r = await fetch(u);
+        const data = await r.json();
+
+        const hourlyEl = document.getElementById('detailHourlyPanel');
+        const dailyEl = document.getElementById('detailDailyPanel');
+        hourlyEl.innerHTML = '';
+        dailyEl.innerHTML = '';
+
+        const h = data.hourly;
+        const d = data.daily;
+
+        if (mode === 'temp') {
+          if (h && h.time && h.temperature_2m) {
+            hourlyEl.appendChild(
+              renderHourlyRows(h.time, h.temperature_2m, function (v) {
+                return Math.round(v) + ' °C';
+              })
+            );
+          } else {
+            hourlyEl.innerHTML =
+              '<div class="detail-error">Saatlik sıcaklık alınamadı.</div>';
+          }
+          if (d) {
+            dailyEl.appendChild(renderDailyRows(d, 'temp'));
+          } else {
+            dailyEl.innerHTML =
+              '<div class="detail-error">Günlük tahmin alınamadı.</div>';
+          }
+        } else {
+          if (h && h.time && h.relative_humidity_2m) {
+            hourlyEl.appendChild(
+              renderHourlyRows(h.time, h.relative_humidity_2m, function (v) {
+                return Math.round(v) + ' %';
+              })
+            );
+          } else {
+            hourlyEl.innerHTML =
+              '<div class="detail-error">Saatlik nem alınamadı.</div>';
+          }
+          if (d) {
+            dailyEl.appendChild(renderDailyRows(d, 'humidity'));
+          } else {
+            dailyEl.innerHTML =
+              '<div class="detail-error">Günlük tahmin alınamadı.</div>';
+          }
+        }
+      } catch (e) {
+        document.getElementById('detailHourlyPanel').innerHTML =
+          '<div class="detail-error">Veri yüklenemedi. Bağlantınızı kontrol edin.</div>';
+        document.getElementById('detailDailyPanel').innerHTML = '';
+      }
+    }
+
+    const particleContainer = document.getElementById('particles');
+    for (let i = 0; i < 28; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.width = p.style.height = (Math.random() * 3 + 2) + 'px';
+      p.style.animationDuration = (Math.random() * 14 + 8) + 's';
+      p.style.animationDelay = (Math.random() * 12) + 's';
+      p.style.opacity = Math.random() * 0.4 + 0.1;
+      particleContainer.appendChild(p);
+    }
+
+    function formatDate() {
+      return new Intl.DateTimeFormat('tr-TR', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+      }).format(new Date());
+    }
+
+    function setError(msg) {
+      const error = document.getElementById('errorMsg');
+      error.textContent = msg;
+      error.classList.add('visible');
+    }
+
+    function clearError() {
+      document.getElementById('errorMsg').classList.remove('visible');
+    }
+
+    async function loadWeatherForCoords(lat, lon, placeLine) {
+      clearError();
+      state.lat = lat;
+      state.lon = lon;
+      state.placeLine = placeLine;
+
+      const wxUrl =
+        'https://api.open-meteo.com/v1/forecast?latitude=' +
+        lat +
+        '&longitude=' +
+        lon +
+        '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature' +
+        '&timezone=auto';
+      const wxRes = await fetch(wxUrl);
+      if (!wxRes.ok) throw new Error('wx_http');
+      const wxData = await wxRes.json();
+
+      if (!wxData.current) {
+        throw new Error('no_current');
+      }
+
+      const c = wxData.current;
+      const code = c.weather_code;
+      const desc = WMO_TR[code] != null ? WMO_TR[code] : 'Bilinmeyen durum';
+
+      document.getElementById('cityDisplay').textContent = placeLine;
+      document.getElementById('dateDisplay').textContent = formatDate();
+      document.getElementById('tempDisplay').innerHTML =
+        Math.round(c.temperature_2m) + '<span class="temp-unit">°C</span>';
+      document.getElementById('descDisplay').textContent = desc;
+      document.getElementById('humidityVal').textContent = '%' + c.relative_humidity_2m;
+      document.getElementById('windVal').textContent =
+        (c.wind_speed_10m != null ? Math.round(c.wind_speed_10m) : '—') + ' km/sa';
+      document.getElementById('feelVal').textContent =
+        (c.apparent_temperature != null ? Math.round(c.apparent_temperature) : Math.round(c.temperature_2m)) + '°C';
+      document.getElementById('weatherIcon').textContent = iconForCode(code);
+
+      document.getElementById('weatherResult').classList.add('visible');
+    }
+
+    async function reverseLabel(lat, lon) {
+      try {
+        const u =
+          'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' +
+          lat +
+          '&longitude=' +
+          lon;
+        const r = await fetch(u);
+        const d = await r.json();
+        const city = d.city || d.locality || d.principalSubdivision || '';
+        const country = d.countryName || '';
+        const line = [city, country].filter(Boolean).join(', ');
+        return line || 'Seçilen konum (' + lat.toFixed(2) + ', ' + lon.toFixed(2) + ')';
+      } catch (e) {
+        return 'Seçilen konum (' + lat.toFixed(2) + ', ' + lon.toFixed(2) + ')';
+      }
+    }
+
+    let mapInstance = null;
+    let mapMarker = null;
+
+    function initMap() {
+      if (mapInstance) return;
+      const mapEl = document.getElementById('map');
+      mapInstance = L.map(mapEl).setView([39, 35], 6);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+      }).addTo(mapInstance);
+      mapInstance.on('click', async function (ev) {
+        const lat = ev.latlng.lat;
+        const lon = ev.latlng.lng;
+        if (mapMarker) {
+          mapMarker.setLatLng(ev.latlng);
+        } else {
+          mapMarker = L.marker(ev.latlng).addTo(mapInstance);
+        }
+        const mapHint = document.getElementById('mapHint');
+        mapHint.textContent = 'Konum alınıyor…';
+        const label = await reverseLabel(lat, lon);
+        mapHint.textContent = 'Seçildi: ' + label;
+        closeMapModal();
+        const spinner = document.getElementById('spinner');
+        const btn = document.getElementById('fetchBtn');
+        spinner.classList.add('visible');
+        btn.disabled = true;
+        try {
+          await loadWeatherForCoords(lat, lon, label);
+        } catch (e) {
+          document.getElementById('weatherResult').classList.remove('visible');
+          setError('Hava verisi alınamadı veya bağlantı hatası.');
+        } finally {
+          spinner.classList.remove('visible');
+          btn.disabled = false;
+        }
+      });
+    }
+
+    function openMapModal() {
+      document.getElementById('mapModal').classList.add('open');
+      document.getElementById('mapHint').textContent = 'Haritada bir yere tıklayın.';
+      setTimeout(function () {
+        initMap();
+        mapInstance.invalidateSize();
+        setTimeout(function () {
+          mapInstance.invalidateSize();
+        }, 300);
+      }, 150);
+    }
+
+    function closeMapModal() {
+      document.getElementById('mapModal').classList.remove('open');
+    }
+
+    async function getWeather() {
+      const city = document.getElementById('cityInput').value.trim();
+      if (!city) {
+        setError('Lütfen bir şehir adı yazın.');
+        document.getElementById('weatherResult').classList.remove('visible');
+        return;
+      }
+
+      const btn = document.getElementById('fetchBtn');
+      const spinner = document.getElementById('spinner');
+      const result = document.getElementById('weatherResult');
+
+      result.classList.remove('visible');
+      clearError();
+      spinner.classList.add('visible');
+      btn.disabled = true;
+
+      try {
+        const geoUrl =
+          'https://geocoding-api.open-meteo.com/v1/search?name=' +
+          encodeURIComponent(city) +
+          '&count=1&language=tr&format=json';
+        const geoRes = await fetch(geoUrl);
+        if (!geoRes.ok) throw new Error('geo_http');
+        const geoData = await geoRes.json();
+
+        if (!geoData.results || !geoData.results.length) {
+          setError('Şehir bulunamadı. Yazımı kontrol edip tekrar deneyin.');
+          return;
+        }
+
+        const place = geoData.results[0];
+        const lat = place.latitude;
+        const lon = place.longitude;
+        const name = place.name;
+        const country = place.country || '';
+        const admin = [place.admin1, country].filter(Boolean).join(', ');
+        const placeLine = admin ? name + ', ' + admin : name;
+
+        await loadWeatherForCoords(lat, lon, placeLine);
+      } catch (e) {
+        if (e.message === 'no_current' || e.message === 'wx_http') {
+          setError('Hava verisi alınamadı. Bir süre sonra tekrar deneyin.');
+        } else {
+          setError('Bağlantı hatası veya sunucu yanıt vermedi. İnternetinizi kontrol edip tekrar deneyin.');
+        }
+      } finally {
+        spinner.classList.remove('visible');
+        btn.disabled = false;
+      }
+    }
+
+    document.getElementById('fetchBtn').addEventListener('click', getWeather);
+    document.getElementById('cityInput').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') getWeather();
+    });
+
+    const cardTemp = document.getElementById('cardTemp');
+    const cardHumidity = document.getElementById('cardHumidity');
+    const detailModal = document.getElementById('detailModal');
+    const mapModal = document.getElementById('mapModal');
+
+    function cardActivate(el, fn) {
+      el.addEventListener('click', fn);
+      el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          fn();
+        }
+      });
+    }
+
+    cardActivate(cardTemp, function () {
+      openDetailModal('temp');
+    });
+    cardActivate(cardHumidity, function () {
+      openDetailModal('humidity');
+    });
+
+    document.getElementById('openMapBtn').addEventListener('click', openMapModal);
+    document.getElementById('mapModalClose').addEventListener('click', closeMapModal);
+    mapModal.addEventListener('click', function (e) {
+      if (e.target === mapModal) closeMapModal();
+    });
+
+    document.getElementById('detailModalClose').addEventListener('click', closeDetailModal);
+
+    detailModal.addEventListener('click', function (e) {
+      if (e.target === detailModal) closeDetailModal();
+    });
+
+    document.getElementById('tabHourly').addEventListener('click', function () {
+      setDetailTab('hourly');
+    });
+    document.getElementById('tabDaily').addEventListener('click', function () {
+      setDetailTab('daily');
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      if (mapModal.classList.contains('open')) {
+        closeMapModal();
+        return;
+      }
+      if (detailModal.classList.contains('open')) {
+        closeDetailModal();
+      }
+    });
+  </script>
+
+</body>
+</html>
