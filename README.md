@@ -1,7 +1,55 @@
 ## YapayZekalarlaWeb
 
-Özcan, haklısın; Markdown bazen sade bir metin gibi görünebilir ama GitHub'a yüklediğinde o # işaretleri devasa başlıklara, | işaretleri ise şık tablolara dönüşür. Ama madem daha "göze çarpan" ve hiyerarşisi net bir şey istiyorsun, görsel vurguları (Emoji ve HTML etiketleri) artırarak zenginleştirilmiş bir versiyon hazırladım.Bunu GitHub'da README.md dosyasına yapıştırdığında, en üstteki başlık en büyük, alt başlıklar ise orta boyda ve düzenli görünecek.🌦️ AI WEATHER LAB: THE MULTI-MODEL BENCHMARK🚀 Claude Code vs. Gemini vs. Cursor vs. Anti-gravity📌 PROJE HAKKINDABu depo, aynı teknik isterlerin farklı yapay zeka modelleri tarafından nasıl yorumlandığını ve kodlandığını incelemek için oluşturulmuş bir Yazılım Mühendisliği çalışmasıdır.🛠️ TEKNİK ANALİZ VE KIYASLAMAAşağıdaki tablo, geliştirme sürecinde her bir AI modelinin karakterini ve kodlama stilini özetler:🤖 MODEL🎯 ODAK NOKTASI🎨 TASARIM DİLİ⚙️ TECH STACKCLAUDE CODERobust ArchitectureMinimalist & CleanTailwind CSSGEMINI (Premium)Visual StorytellingHigh-End GlassmorphismTailwind + PhosphorCURSORRapid PrototypingFunctional & DirectBootstrap / TailwindANTI-GRAVITYExperimental UXUnconventional LayoutsCustom CSS / Tailwind🌟 ÖNE ÇIKAN VERSİYON: GEMINI PREMIUM EDITIONBu versiyon, görsel hiyerarşisi ve kullanıcı etkileşimiyle bir Premium Dashboard mantığında kurgulanmıştır:⚡ Dinamik Zaman Eşleme: API verilerini milisaniye hassasiyetinde yerel saate endeksleme.📊 Veri Kürasyonu: UV indeksi, rüzgar hızı ve nem için özel görsel kartlar.🎭 Akıcı Animasyonlar: cubic-bezier geçişleri ile modern bir kullanıcı deneyimi.📂 REPO YAPISIBash├── 01-claude-code/   # Mimari ve hata yönetimi odaklı.
-├── 02-gemini/        # "Premium" görsel arayüz ve zengin veri.
-├── 03-cursor/        # Hızlı çözüm ve standart bileşenler.
-└── 04-antigravity/   # Deneysel tasarım ve farklı akışlar.
-👨‍💻 GELİŞTİRİCİ: ÖZCAN LALEYazılım Mühendisliği | 1. Sınıf Öğrencisi"Bu çalışma, yapay zekanın sadece kod yazma yeteneğini değil, aynı zamanda farklı modellerin problem çözme metodolojilerini ve estetik anlayışlarını ölçmek için geliştirilmiştir."🛠️ DONANIM VE TEST ORTAMIBu projeler aşağıdaki yüksek performanslı sistem üzerinde geliştirilmiş ve test edilmiştir:CPU: AMD Ryzen 7 8845HSGPU: NVIDIA GeForce RTX 4060RAM: 32 GBOS: Windows 11
+# 🌦️ AI Weather Lab: The Multi-Model Benchmark
+## 🚀 Claude Code vs. Gemini vs. Cursor vs. Anti-gravity
+
+---
+
+### 📌 Proje Hakkında
+Bu depo, aynı teknik isterlerin farklı yapay zeka modelleri tarafından nasıl yorumlandığını ve kodlandığını incelemek için oluşturulmuş bir **Yazılım Mühendisliği** çalışmasıdır.
+
+
+
+---
+
+### 🛠️ Teknik Analiz ve Kıyaslama
+Aşağıdaki tablo, geliştirme sürecinde her bir AI modelinin karakterini ve kodlama stilini özetler:
+
+| 🤖 Model | 🎯 Odak Noktası | 🎨 Tasarım Dili | ⚙️ Tech Stack |
+| :--- | :--- | :--- | :--- |
+| **Claude Code** | Robust Architecture | Minimalist & Clean | Tailwind CSS |
+| **Gemini (Premium)** | Visual Storytelling | High-End Glassmorphism | Tailwind + Phosphor |
+| **Cursor** | Rapid Prototyping | Functional & Direct | Bootstrap / Tailwind |
+| **Anti-gravity** | Experimental UX | Unconventional Layouts | Custom CSS / Tailwind |
+
+---
+
+### 🌟 Öne Çıkan Versiyon: Gemini Premium Edition
+Bu versiyon, görsel hiyerarşisi ve kullanıcı etkileşimiyle bir **Premium Dashboard** mantığında kurgulanmıştır:
+
+* **⚡ Dinamik Zaman Eşleme:** API verilerini milisaniye hassasiyetinde yerel saate endeksleme.
+* **📊 Veri Kürasyonu:** UV indeksi, rüzgar hızı ve nem için özel görsel kartlar.
+* **🎭 Akıcı Animasyonlar:** `cubic-bezier` geçişleri ile modern bir kullanıcı deneyimi.
+
+---
+
+### 📂 Repo Yapısı
+* **01-claude-code/**: Mimari ve hata yönetimi odaklı.
+* **02-gemini/**: "Premium" görsel arayüz ve zengin veri.
+* **03-cursor/**: Hızlı çözüm ve standart bileşenler.
+* **04-antigravity/**: Deneysel tasarım ve farklı akışlar.
+
+---
+
+### 👨‍💻 Geliştirici: Özcan Lale
+**Yazılım Mühendisliği | 1. Sınıf Öğrencisi**
+
+> "Bu çalışma, yapay zekanın sadece kod yazma yeteneğini değil, aynı zamanda farklı modellerin problem çözme metodolojilerini ve estetik anlayışlarını ölçmek için geliştirilmiştir."
+
+---
+
+### 💻 Donanım ve Test Ortamı
+* **İşlemci:** AMD Ryzen 7 8845HS
+* **Ekran Kartı:** NVIDIA GeForce RTX 4060
+* **Bellek:** 32 GB RAM
+* **İşletim Sistemi:** Windows 11
